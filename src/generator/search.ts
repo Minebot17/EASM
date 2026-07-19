@@ -14,8 +14,9 @@ const GOLDEN_GAMMA = 0x9e3779b97f4a7c15n;
 const REGISTER_NAMES: readonly RegisterName[] = ["A", "B", "C", "D"];
 const BINARY_OPCODES = new Set(["add", "sub", "mul", "mod", "and", "or", "xor", "shl", "shr", "ushr", "rol", "ror", "eq", "ne", "lt", "le", "gt", "ge"]);
 const UNARY_OPCODES = new Set(["neg", "not", "inc", "dec"]);
-const NON_RECURSIVE_INSERT_TARGETS = OPCODES.filter((opcode) => opcode.name !== "insert" && opcode.name !== "change");
-const NON_SHIFTING_OPCODES = OPCODES.filter((opcode) => opcode.name !== "insert" && opcode.name !== "delete");
+const RANDOM_OPCODES = OPCODES.filter((opcode) => opcode.name !== "nop" && opcode.name !== "halt");
+const NON_RECURSIVE_INSERT_TARGETS = RANDOM_OPCODES.filter((opcode) => opcode.name !== "insert" && opcode.name !== "change");
+const NON_SHIFTING_OPCODES = RANDOM_OPCODES.filter((opcode) => opcode.name !== "insert" && opcode.name !== "delete");
 
 export interface SearchConfig {
   maxPrograms: number;
@@ -160,7 +161,7 @@ function randomOperandsForDefinition(
   if (definition.name === "delete") return [immediate(random.int(plannedDefinitions.length))];
 
   if (definition.name === "insert") {
-    const availableTargets = allowNestedSelfModification ? OPCODES : NON_RECURSIVE_INSERT_TARGETS;
+    const availableTargets = allowNestedSelfModification ? RANDOM_OPCODES : NON_RECURSIVE_INSERT_TARGETS;
     const insertedDefinition = availableTargets[random.int(availableTargets.length)];
     const insertedOperands = randomOperandsForDefinition(
       insertedDefinition,
@@ -202,7 +203,7 @@ function buildRandomProgram(
   random: RandomSource,
   descriptors: DescriptorAllocator,
 ): Program {
-  const rawDefinitions = Array.from({ length: instructionCount }, () => OPCODES[random.int(OPCODES.length)]);
+  const rawDefinitions = Array.from({ length: instructionCount }, () => RANDOM_OPCODES[random.int(RANDOM_OPCODES.length)]);
   // A numeric change target is only type-safe while instruction indexes stay stable.
   // If this candidate contains change, replace index-shifting mutations with other
   // randomly selected opcodes. Programs without change may still freely insert/delete.

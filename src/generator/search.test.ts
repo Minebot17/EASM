@@ -55,6 +55,21 @@ describe("generator filtering", () => {
     expect(parseProgram(source).instructions).toHaveLength(20);
   });
 
+  it("does not generate nop or halt in programs and insert targets", () => {
+    const random = new RandomSource(456n);
+    for (let iteration = 0; iteration < 500; iteration += 1) {
+      const program = generateRandomProgram(32, 8, random);
+      program.instructions.forEach((instruction) => {
+        expect(["nop", "halt"]).not.toContain(instruction.opcode);
+        if (instruction.opcode === "insert") {
+          const opcodeIndex = instruction.operands[0];
+          expect(opcodeIndex.kind).toBe("immediate");
+          if (opcodeIndex.kind === "immediate") expect([28n, 29n]).not.toContain(opcodeIndex.value);
+        }
+      });
+    }
+  });
+
   it("splits random memory operands across all three addressing modes", () => {
     let directPointers = 0;
     let registerPointers = 0;
