@@ -1,0 +1,68 @@
+.generator-shell { width: min(1220px, calc(100% - 32px)); }
+.generator-hero { align-items: center; }
+.nav-link { display: inline-flex; align-items: center; min-height: 38px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 8px; color: var(--accent-2); background: #11171c; text-decoration: none; font-size: 13px; }
+.nav-link:hover { border-color: #4e6470; background: #172027; }
+.generator-config { overflow: hidden; margin-bottom: 14px; }
+.generator-section-title { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 15px; border-bottom: 1px solid var(--line); }
+.generator-section-title > div:first-child { display: grid; gap: 4px; }
+.generator-section-title span { font-weight: 750; }
+.generator-section-title small { color: var(--muted); }
+.generator-format { padding: 0; }
+.criteria-grid { display: grid; grid-template-columns: 1fr 34px 1fr; align-items: center; gap: 10px; padding: 15px; }
+.criteria-grid label, .limits-grid label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
+.criteria-grid textarea { width: 100%; height: 105px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; outline: 0; padding: 11px; color: #e4ecf2; background: #0d1115; font: 13px/1.5 "Cascadia Code", Consolas, monospace; }
+.criteria-grid textarea:focus, .limits-grid input:focus { border-color: #596f49; }
+.transform-arrow { color: var(--accent); text-align: center; font-size: 24px; }
+.comparison-row { display: flex; align-items: center; gap: 12px; margin: 0 15px 15px; padding: 10px 12px; border: 1px solid #293139; border-radius: 8px; background: #0e1317; }
+.comparison-row > span { flex: none; color: #dce5ec; font-size: 12px; font-weight: 700; }
+.comparison-row .segmented { flex: none; padding: 0; }
+.comparison-row small { margin-left: auto; color: var(--muted); text-align: right; }
+.limits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 0 15px 15px; }
+.limits-grid input { width: 100%; border: 1px solid var(--line); border-radius: 7px; outline: 0; padding: 9px 10px; color: #e4ecf2; background: #0d1115; }
+.generator-actions { display: flex; align-items: center; gap: 9px; padding: 13px 15px; border-top: 1px solid var(--line); background: #0f1418; }
+.generator-actions span { margin-left: auto; color: var(--muted); font-size: 11px; }
+.generator-start { min-width: 275px; }
+
+.progress-card { padding: 15px; margin-bottom: 24px; }
+.progress-header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.progress-header span { color: var(--muted); font: 12px ui-monospace, monospace; }
+.progress-track { height: 7px; overflow: hidden; border-radius: 999px; background: #090c0f; }
+.progress-track > div { height: 100%; min-width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .15s linear; }
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 13px; }
+.metric-grid > div { display: grid; gap: 4px; padding: 10px; border: 1px solid #242c32; border-radius: 7px; background: #0e1317; }
+.metric-grid span { color: var(--muted); font-size: 11px; }
+.metric-grid strong { font: 700 20px/1 ui-monospace, monospace; }
+.metric-grid .success-number { color: var(--accent); }
+
+.results-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin: 0 3px 12px; }
+.results-heading h2 { margin: 0 0 4px; font-size: 22px; }
+.results-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.results-heading > span { flex: none; color: var(--accent); font: 700 13px ui-monospace, monospace; }
+.notice { margin-bottom: 10px; padding: 10px 12px; border: 1px solid #5f5330; border-radius: 8px; color: #ffe3a0; background: #211c0e; font-size: 12px; }
+.result-list { display: grid; gap: 9px; }
+.result-card { overflow: hidden; }
+.result-card summary { display: flex; justify-content: space-between; gap: 12px; padding: 13px 15px; cursor: pointer; list-style-position: inside; }
+.result-card summary:hover { background: #182027; }
+.result-card summary span { color: var(--accent-2); font-weight: 700; }
+.result-card summary small { color: var(--muted); }
+.result-code-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1px; border-top: 1px solid var(--line); background: var(--line); }
+.result-code-grid > div { min-width: 0; padding: 12px; background: #10151a; }
+.result-code-grid strong { display: block; margin-bottom: 8px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
+.result-code-grid pre { min-height: 110px; max-height: 340px; overflow: auto; margin: 0; padding: 11px; border-radius: 7px; color: #dce5ec; background: #090d10; font: 12px/1.55 "Cascadia Code", Consolas, monospace; white-space: pre-wrap; }
+.generator-empty { padding: 45px 20px; color: var(--muted); text-align: center; }
+
+@media (max-width: 780px) {
+  .generator-section-title, .generator-actions { align-items: stretch; flex-direction: column; }
+  .generator-actions span { margin-left: 0; }
+  .generator-start { min-width: 0; }
+  .criteria-grid { grid-template-columns: 1fr; }
+  .transform-arrow { transform: rotate(90deg); }
+  .comparison-row { align-items: flex-start; flex-direction: column; }
+  .comparison-row small { margin-left: 0; text-align: left; }
+  .limits-grid, .metric-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .limits-grid, .metric-grid { grid-template-columns: 1fr; }
+  .results-heading { align-items: flex-start; flex-direction: column; }
+}

@@ -1,0 +1,5 @@
+; rand детерминирован при одинаковом seed VM.
+rand A
+rand [0]
+xor A, [0], C
+halt
