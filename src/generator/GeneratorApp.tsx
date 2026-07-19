@@ -145,8 +145,8 @@ export function GeneratorApp() {
       const validatedInstructions = clampInteger(instructionsPerProgram, 1, 64, "Количество инструкций");
       const validatedMemorySize = clampInteger(memorySize, 1, 65_536, "Количество ячеек памяти");
       const validatedWorkerCount = clampInteger(workerCount, 1, 64, "Количество потоков");
-      if (!Number.isFinite(timeLimitSeconds) || timeLimitSeconds < 0.1 || timeLimitSeconds > 300) {
-        throw new Error("Время поиска: допустимый диапазон 0.1…300 секунд");
+      if (!Number.isFinite(timeLimitSeconds) || timeLimitSeconds < 0.1 || timeLimitSeconds > 1_000_000) {
+        throw new Error("Время поиска: допустимый диапазон 0.1…1000000 секунд");
       }
       const oversizedCase = encodedCases.findIndex((testCase) =>
         testCase.initialMemory.length > validatedMemorySize || testCase.expectedMemory.length > validatedMemorySize);
@@ -284,7 +284,7 @@ export function GeneratorApp() {
             <input disabled={running} type="number" min="1" max="64" value={workerCount} onChange={(event) => setWorkerCount(Number(event.target.value))} />
           </label>
           <label>Лимит времени, секунд
-            <input disabled={running} type="number" min="0.1" max="300" step="0.1" value={timeLimitSeconds} onChange={(event) => setTimeLimitSeconds(Number(event.target.value))} />
+            <input disabled={running} type="number" min="0.1" max="1000000" step="0.1" value={timeLimitSeconds} onChange={(event) => setTimeLimitSeconds(Number(event.target.value))} />
           </label>
           <label>Seed генератора
             <input disabled={running} value={seed} onChange={(event) => setSeed(event.target.value)} />
