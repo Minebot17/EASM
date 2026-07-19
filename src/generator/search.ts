@@ -15,8 +15,6 @@ const REGISTER_NAMES: readonly RegisterName[] = ["A", "B", "C", "D"];
 const BINARY_OPCODES = new Set(["add", "sub", "mul", "mod", "and", "or", "xor", "shl", "shr", "ushr", "rol", "ror", "eq", "ne", "lt", "le", "gt", "ge"]);
 const UNARY_OPCODES = new Set(["neg", "not", "inc", "dec"]);
 const RANDOM_OPCODES = OPCODES.filter((opcode) => opcode.name !== "nop" && opcode.name !== "halt");
-const NON_RECURSIVE_INSERT_TARGETS = RANDOM_OPCODES.filter((opcode) => opcode.name !== "insert" && opcode.name !== "change");
-const NON_SHIFTING_OPCODES = RANDOM_OPCODES.filter((opcode) => opcode.name !== "insert" && opcode.name !== "delete");
 
 export interface SearchConfig {
   maxPrograms: number;
@@ -25,6 +23,7 @@ export interface SearchConfig {
   memorySize: number;
   maxStepsPerProgram: number;
   seed: bigint;
+  allowedOpcodeIndexes: number[];
   cases: SearchCase[];
   comparisonMode: ComparisonMode;
 }
@@ -157,6 +156,7 @@ function randomOperandsForDefinition(
   random: RandomSource,
   memorySize: number,
   descriptors: DescriptorAllocator,
+  availableDefinitions: readonly OpcodeDefinition[],
   allowNestedSelfModification: boolean,
 ): Operand[] {
   const source = () => randomSourceOperand(random, memorySize);
@@ -173,7 +173,11 @@ function randomOperandsForDefinition(
   if (definition.name === "delete") return [immediate(random.int(plannedDefinitions.length))];
 
   if (definition.name === "insert") {
-    const availableTargets = allowNestedSelfModification ? RANDOM_OPCODES : NON_RECURSIVE_INSERT_TARGETS;
+    const nonRecursiveTargets = availableDefinitions.filter((opcode) => opcode.name !== "insert" && opcode.name !== "change");
+    const availableTargets = allowNestedSelfModification ? availableDefinitions : nonRecursiveTargets;
+    if (!availableTargets.length) {
+      throw new Error("Для генерации insert требуется хотя бы одна выбранная операция, кроме insert и change");
+    }
     const insertedDefinition = availableTargets[random.int(availableTargets.length)];
     const insertedOperands = randomOperandsForDefinition(
       insertedDefinition,
@@ -181,6 +185,7 @@ function randomOperandsForDefinition(
       random,
       memorySize,
       descriptors,
+      availableDefinitions,
       false,
     );
     return [
@@ -201,6 +206,7 @@ function randomOperandsForDefinition(
           random,
           memorySize,
           descriptors,
+          availableDefinitions,
           false,
         );
     return [immediate(target), ...replacementOperands.map((operand) => descriptors.allocate(operand))];
@@ -214,21 +220,24 @@ function buildRandomProgram(
   memorySize: number,
   random: RandomSource,
   descriptors: DescriptorAllocator,
+  availableDefinitions: readonly OpcodeDefinition[] = RANDOM_OPCODES,
 ): Program {
-  const rawDefinitions = Array.from({ length: instructionCount }, () => RANDOM_OPCODES[random.int(RANDOM_OPCODES.length)]);
+  if (!availableDefinitions.length) throw new Error("Не выбрана ни одна операция для генерации");
+  const rawDefinitions = Array.from({ length: instructionCount }, () => availableDefinitions[random.int(availableDefinitions.length)]);
   // A numeric change target is only type-safe while instruction indexes stay stable.
   // If this candidate contains change, replace index-shifting mutations with other
   // randomly selected opcodes. Programs without change may still freely insert/delete.
   const containsChange = rawDefinitions.some((definition) => definition.name === "change");
+  const nonShiftingOpcodes = availableDefinitions.filter((opcode) => opcode.name !== "insert" && opcode.name !== "delete");
   const plannedDefinitions = containsChange
     ? rawDefinitions.map((definition) => definition.name === "insert" || definition.name === "delete"
-      ? NON_SHIFTING_OPCODES[random.int(NON_SHIFTING_OPCODES.length)]
+      ? nonShiftingOpcodes[random.int(nonShiftingOpcodes.length)]
       : definition)
     : rawDefinitions;
   const instructions: Instruction[] = plannedDefinitions.map((definition, id) => ({
     id,
     opcode: definition.name,
-    operands: randomOperandsForDefinition(definition, plannedDefinitions, random, memorySize, descriptors, true),
+    operands: randomOperandsForDefinition(definition, plannedDefinitions, random, memorySize, descriptors, availableDefinitions, true),
     generated: true,
   }));
   return { instructions, labels: {} };
@@ -241,7 +250,9 @@ export function seedForCandidate(baseSeed: bigint, ordinal: number): bigint {
 export function generateRandomCandidate(config: SearchConfig, ordinal: number): GeneratedCandidate {
   const random = new RandomSource(seedForCandidate(config.seed, ordinal));
   const descriptors = new DescriptorAllocator(config.memorySize);
-  const program = buildRandomProgram(config.instructionsPerProgram, config.memorySize, random, descriptors);
+  const allowedIndexes = new Set(config.allowedOpcodeIndexes);
+  const availableDefinitions = RANDOM_OPCODES.filter((opcode) => allowedIndexes.has(opcode.index));
+  const program = buildRandomProgram(config.instructionsPerProgram, config.memorySize, random, descriptors, availableDefinitions);
   return { program, descriptorCells: descriptors.cells };
 }
 

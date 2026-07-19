@@ -16,6 +16,7 @@ const TEST_CONFIG: SearchConfig = {
   memorySize: 12,
   maxStepsPerProgram: 200,
   seed: 123n,
+  allowedOpcodeIndexes: OPCODES.filter((opcode) => opcode.name !== "nop" && opcode.name !== "halt").map((opcode) => opcode.index),
   cases: [{ initialMemory: [3n, 1n, 2n], expectedMemory: [99n] }],
   comparisonMode: "exact",
 };
@@ -64,6 +65,22 @@ describe("generator filtering", () => {
           const opcodeIndex = instruction.operands[0];
           expect(opcodeIndex.kind).toBe("immediate");
           if (opcodeIndex.kind === "immediate") expect([28n, 29n]).not.toContain(opcodeIndex.value);
+        }
+      });
+    }
+  });
+
+  it("only uses selected operations in source and insert targets", () => {
+    const allowedOpcodeIndexes = [0, 7, 24, 30];
+    const allowedNames = new Set(["add", "xor", "rand", "insert"]);
+    for (let ordinal = 1; ordinal <= 200; ordinal += 1) {
+      const candidate = generateRandomCandidate({ ...TEST_CONFIG, allowedOpcodeIndexes }, ordinal);
+      candidate.program.instructions.forEach((instruction) => {
+        expect(allowedNames.has(instruction.opcode)).toBe(true);
+        if (instruction.opcode === "insert") {
+          const insertedOpcode = instruction.operands[0];
+          expect(insertedOpcode.kind).toBe("immediate");
+          if (insertedOpcode.kind === "immediate") expect(allowedOpcodeIndexes).toContain(Number(insertedOpcode.value));
         }
       });
     }

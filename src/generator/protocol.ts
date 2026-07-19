@@ -8,6 +8,7 @@ export interface SearchPayload {
   memorySize: number;
   maxStepsPerProgram: number;
   seed: string;
+  allowedOpcodeIndexes: number[];
   cases: Array<{
     initialMemory: string[];
     expectedMemory: string[];

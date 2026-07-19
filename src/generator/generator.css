@@ -23,6 +23,19 @@
 .comparison-row > span { flex: none; color: #dce5ec; font-size: 12px; font-weight: 700; }
 .comparison-row .segmented { flex: none; padding: 0; }
 .comparison-row small { margin-left: auto; color: var(--muted); text-align: right; }
+.opcode-selector { margin: 0 15px 15px; padding: 12px; border: 1px solid #293139; border-radius: 8px; background: #0e1317; }
+.opcode-selector-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 11px; }
+.opcode-selector-heading > div:first-child { display: grid; gap: 3px; }
+.opcode-selector-heading strong { color: #dce5ec; font-size: 12px; }
+.opcode-selector-heading small { color: var(--muted); }
+.opcode-selector-heading > div:last-child { display: flex; gap: 7px; }
+.opcode-selector-heading .button { min-height: 30px; padding: 5px 9px; font-size: 11px; }
+.opcode-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 6px; }
+.opcode-grid label { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 7px 8px; border: 1px solid #252d33; border-radius: 6px; color: var(--muted); background: #0b0f12; cursor: pointer; }
+.opcode-grid label.selected { border-color: #495d39; color: #e4ecf2; background: #141c12; }
+.opcode-grid input { accent-color: var(--accent); }
+.opcode-grid code { min-width: 18px; color: #7f8c95; font-size: 10px; text-align: right; }
+.opcode-grid span { overflow: hidden; font: 12px ui-monospace, monospace; text-overflow: ellipsis; }
 .limits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 0 15px 15px; }
 .limits-grid input { width: 100%; border: 1px solid var(--line); border-radius: 7px; outline: 0; padding: 9px 10px; color: #e4ecf2; background: #0d1115; }
 .generator-actions { display: flex; align-items: center; gap: 9px; padding: 13px 15px; border-top: 1px solid var(--line); background: #0f1418; }
@@ -65,6 +78,7 @@
   .transform-arrow { transform: rotate(90deg); }
   .comparison-row { align-items: flex-start; flex-direction: column; }
   .comparison-row small { margin-left: 0; text-align: left; }
+  .opcode-selector-heading { align-items: flex-start; flex-direction: column; }
   .limits-grid, .metric-grid { grid-template-columns: repeat(2, 1fr); }
 }
 

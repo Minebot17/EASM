@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { bitsToCells, integerListToCells, utf8ToCells } from "../core";
+import { OPCODES, bitsToCells, integerListToCells, utf8ToCells } from "../core";
 import type { GeneratorRequest, GeneratorResponse, SearchPayload } from "./protocol";
 import type { SearchProgress, SuccessfulProgram } from "./search";
 import type { ComparisonMode } from "./search";
@@ -8,6 +8,7 @@ type DataFormat = "text" | "bits" | "integers";
 type GeneratorCase = { id: number; input: string; expected: string };
 
 const EMPTY_PROGRESS: SearchProgress = { generated: 0, successful: 0, errors: 0, limits: 0, elapsedMs: 0 };
+const SELECTABLE_OPCODES = OPCODES.filter((opcode) => opcode.name !== "nop" && opcode.name !== "halt");
 
 function encodeInput(format: DataFormat, value: string): bigint[] {
   if (format === "text") return utf8ToCells(value);
@@ -47,6 +48,7 @@ export function GeneratorApp() {
   const nextCaseIdRef = useRef(2);
   const [format, setFormat] = useState<DataFormat>("integers");
   const [comparisonMode, setComparisonMode] = useState<ComparisonMode>("ignoreZeros");
+  const [selectedOpcodeIndexes, setSelectedOpcodeIndexes] = useState<number[]>(() => SELECTABLE_OPCODES.map((opcode) => opcode.index));
   const [cases, setCases] = useState<GeneratorCase[]>([{ id: 1, input: "0", expected: "1" }]);
   const [maxPrograms, setMaxPrograms] = useState(5_000);
   const [instructionsPerProgram, setInstructionsPerProgram] = useState(4);
@@ -129,6 +131,12 @@ export function GeneratorApp() {
     setCases((current) => current.filter((testCase) => testCase.id !== id));
   };
 
+  const toggleOpcode = (index: number) => {
+    setSelectedOpcodeIndexes((current) => current.includes(index)
+      ? current.filter((candidate) => candidate !== index)
+      : [...current, index].sort((left, right) => left - right));
+  };
+
   const startSearch = () => {
     setError("");
     try {
@@ -145,6 +153,10 @@ export function GeneratorApp() {
       const validatedInstructions = clampInteger(instructionsPerProgram, 1, 64, "Количество инструкций");
       const validatedMemorySize = clampInteger(memorySize, 1, 65_536, "Количество ячеек памяти");
       const validatedWorkerCount = clampInteger(workerCount, 1, 64, "Количество потоков");
+      if (!selectedOpcodeIndexes.length) throw new Error("Выберите хотя бы одну операцию для генерации");
+      if (selectedOpcodeIndexes.includes(30) && !selectedOpcodeIndexes.some((index) => ![30, 32].includes(index))) {
+        throw new Error("Для insert выберите хотя бы одну операцию, кроме insert и change");
+      }
       if (!Number.isFinite(timeLimitSeconds) || timeLimitSeconds < 0.1 || timeLimitSeconds > 1_000_000) {
         throw new Error("Время поиска: допустимый диапазон 0.1…1000000 секунд");
       }
@@ -162,6 +174,7 @@ export function GeneratorApp() {
         memorySize: validatedMemorySize,
         maxStepsPerProgram: Math.min(2_000, Math.max(100, validatedInstructions * 25)),
         seed,
+        allowedOpcodeIndexes: selectedOpcodeIndexes,
         cases: encodedCases.map((testCase) => ({
           initialMemory: testCase.initialMemory.map(String),
           expectedMemory: testCase.expectedMemory.map(String),
@@ -268,6 +281,25 @@ export function GeneratorApp() {
             <button disabled={running} className={comparisonMode === "ignoreZeros" ? "active" : ""} onClick={() => setComparisonMode("ignoreZeros")}>Игнорировать нули</button>
           </div>
           <small>{comparisonMode === "exact" ? "Совпадают значения и их позиции." : "Нули удаляются, значимые значения сравниваются по порядку."}</small>
+        </div>
+
+        <div className="opcode-selector">
+          <div className="opcode-selector-heading">
+            <div><strong>Операции генератора</strong><small>В случайный код и цели insert попадают только отмеченные команды</small></div>
+            <div>
+              <button className="button ghost" disabled={running || selectedOpcodeIndexes.length === SELECTABLE_OPCODES.length} onClick={() => setSelectedOpcodeIndexes(SELECTABLE_OPCODES.map((opcode) => opcode.index))}>Выбрать все</button>
+              <button className="button ghost" disabled={running || selectedOpcodeIndexes.length === 0} onClick={() => setSelectedOpcodeIndexes([])}>Снять все</button>
+            </div>
+          </div>
+          <div className="opcode-grid">
+            {SELECTABLE_OPCODES.map((opcode) => (
+              <label key={opcode.index} className={selectedOpcodeIndexes.includes(opcode.index) ? "selected" : ""}>
+                <input type="checkbox" disabled={running} checked={selectedOpcodeIndexes.includes(opcode.index)} onChange={() => toggleOpcode(opcode.index)} />
+                <code>{opcode.index}</code>
+                <span>{opcode.name}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="limits-grid">
