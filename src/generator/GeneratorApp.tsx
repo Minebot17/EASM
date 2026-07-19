@@ -5,6 +5,7 @@ import type { SearchProgress, SuccessfulProgram } from "./search";
 import type { ComparisonMode } from "./search";
 
 type DataFormat = "text" | "bits" | "integers";
+type GeneratorCase = { id: number; input: string; expected: string };
 
 const EMPTY_PROGRESS: SearchProgress = { generated: 0, successful: 0, errors: 0, limits: 0, elapsedMs: 0 };
 
@@ -43,10 +44,10 @@ export function GeneratorApp() {
   const activeWorkerCountRef = useRef(0);
   const storedResultsRef = useRef<SuccessfulProgram[]>([]);
   const runIdRef = useRef(0);
+  const nextCaseIdRef = useRef(2);
   const [format, setFormat] = useState<DataFormat>("integers");
   const [comparisonMode, setComparisonMode] = useState<ComparisonMode>("ignoreZeros");
-  const [input, setInput] = useState("0");
-  const [expected, setExpected] = useState("1");
+  const [cases, setCases] = useState<GeneratorCase[]>([{ id: 1, input: "0", expected: "1" }]);
   const [maxPrograms, setMaxPrograms] = useState(5_000);
   const [instructionsPerProgram, setInstructionsPerProgram] = useState(4);
   const [timeLimitSeconds, setTimeLimitSeconds] = useState(5);
@@ -114,11 +115,32 @@ export function GeneratorApp() {
     return terminateWorkers;
   }, []);
 
+  const updateCase = (id: number, field: "input" | "expected", value: string) => {
+    setCases((current) => current.map((testCase) => testCase.id === id ? { ...testCase, [field]: value } : testCase));
+  };
+
+  const addCase = () => {
+    const id = nextCaseIdRef.current;
+    nextCaseIdRef.current += 1;
+    setCases((current) => [...current, { id, input: "", expected: "" }]);
+  };
+
+  const removeCase = (id: number) => {
+    setCases((current) => current.filter((testCase) => testCase.id !== id));
+  };
+
   const startSearch = () => {
     setError("");
     try {
-      const initialMemory = encodeInput(format, input);
-      const expectedMemory = encodeInput(format, expected);
+      if (!cases.length) throw new Error("Добавьте хотя бы одно условие");
+      const encodedCases = cases.map((testCase, index) => {
+        const initialMemory = encodeInput(format, testCase.input);
+        const expectedMemory = encodeInput(format, testCase.expected);
+        if (initialMemory.length > 65_536 || expectedMemory.length > 65_536) {
+          throw new Error(`Условие ${index + 1}: вход или ожидаемый выход превышает 65536 ячеек`);
+        }
+        return { initialMemory, expectedMemory };
+      });
       const validatedMaxPrograms = positiveInteger(maxPrograms, "Количество программ");
       const validatedInstructions = clampInteger(instructionsPerProgram, 1, 64, "Количество инструкций");
       const validatedMemorySize = clampInteger(memorySize, 1, 65_536, "Количество ячеек памяти");
@@ -126,11 +148,10 @@ export function GeneratorApp() {
       if (!Number.isFinite(timeLimitSeconds) || timeLimitSeconds < 0.1 || timeLimitSeconds > 300) {
         throw new Error("Время поиска: допустимый диапазон 0.1…300 секунд");
       }
-      if (initialMemory.length > 65_536 || expectedMemory.length > 65_536) {
-        throw new Error("Вход или ожидаемый выход превышает 65536 ячеек");
-      }
-      if (initialMemory.length > validatedMemorySize || expectedMemory.length > validatedMemorySize) {
-        throw new Error("Вход и ожидаемый выход должны помещаться в заданное количество ячеек памяти");
+      const oversizedCase = encodedCases.findIndex((testCase) =>
+        testCase.initialMemory.length > validatedMemorySize || testCase.expectedMemory.length > validatedMemorySize);
+      if (oversizedCase >= 0) {
+        throw new Error(`Условие ${oversizedCase + 1}: вход и ожидаемый выход должны помещаться в заданную память`);
       }
       BigInt(seed);
 
@@ -141,8 +162,10 @@ export function GeneratorApp() {
         memorySize: validatedMemorySize,
         maxStepsPerProgram: Math.min(2_000, Math.max(100, validatedInstructions * 25)),
         seed,
-        initialMemory: initialMemory.map(String),
-        expectedMemory: expectedMemory.map(String),
+        cases: encodedCases.map((testCase) => ({
+          initialMemory: testCase.initialMemory.map(String),
+          expectedMemory: testCase.expectedMemory.map(String),
+        })),
         comparisonMode,
       };
       runIdRef.current += 1;
@@ -217,14 +240,25 @@ export function GeneratorApp() {
             ))}
           </div>
         </div>
-        <div className="criteria-grid">
-          <label>Входные данные
-            <textarea disabled={running} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Начальное содержимое памяти" />
-          </label>
-          <div className="transform-arrow">→</div>
-          <label>Ожидаемый выход
-            <textarea disabled={running} value={expected} onChange={(event) => setExpected(event.target.value)} placeholder="Требуемое содержимое памяти" />
-          </label>
+        <div className="generator-cases">
+          {cases.map((testCase, index) => (
+            <div className="generator-case" key={testCase.id}>
+              <div className="case-heading">
+                <strong>Условие #{index + 1}</strong>
+                <button className="button ghost case-remove" disabled={running || cases.length === 1} onClick={() => removeCase(testCase.id)}>Удалить</button>
+              </div>
+              <div className="criteria-grid">
+                <label>Входные данные
+                  <textarea disabled={running} value={testCase.input} onChange={(event) => updateCase(testCase.id, "input", event.target.value)} placeholder="Начальное содержимое памяти" />
+                </label>
+                <div className="transform-arrow">→</div>
+                <label>Ожидаемый выход
+                  <textarea disabled={running} value={testCase.expected} onChange={(event) => updateCase(testCase.id, "expected", event.target.value)} placeholder="Требуемое содержимое памяти" />
+                </label>
+              </div>
+            </div>
+          ))}
+          <button className="button ghost add-case" disabled={running} onClick={addCase}>+ Добавить условие</button>
         </div>
 
         <div className="comparison-row">
@@ -289,11 +323,13 @@ export function GeneratorApp() {
             <details className="card result-card" key={result.ordinal}>
               <summary>
                 <span>Кандидат #{result.ordinal}</span>
-                <small>{result.steps} шагов · {result.mutations} мутаций</small>
+                <small>{result.runs.length} прогонов · {result.steps} шагов · {result.mutations} мутаций</small>
               </summary>
               <div className="result-code-grid">
                 <div><strong>Сгенерированный код</strong><pre>{result.source}</pre></div>
-                {result.finalSource !== result.source && <div><strong>Код после выполнения</strong><pre>{result.finalSource}</pre></div>}
+                {result.runs.map((run) => run.finalSource !== result.source && (
+                  <div key={run.caseIndex}><strong>Код после условия #{run.caseIndex + 1} · {run.steps} шагов</strong><pre>{run.finalSource}</pre></div>
+                ))}
               </div>
             </details>
           ))}

@@ -16,8 +16,7 @@ const TEST_CONFIG: SearchConfig = {
   memorySize: 12,
   maxStepsPerProgram: 200,
   seed: 123n,
-  initialMemory: [3n, 1n, 2n],
-  expectedMemory: [99n],
+  cases: [{ initialMemory: [3n, 1n, 2n], expectedMemory: [99n] }],
   comparisonMode: "exact",
 };
 
@@ -128,7 +127,7 @@ describe("generator filtering", () => {
         }
       });
 
-      const descriptors = candidate.initialMemory.slice(TEST_CONFIG.memorySize);
+      const descriptors = candidate.descriptorCells;
       expect(descriptors.length % 2).toBe(0);
       for (let index = 0; index < descriptors.length; index += 2) {
         const kind = descriptors[index];
@@ -155,5 +154,27 @@ describe("generator filtering", () => {
         forbidden.forEach((fragment) => expect(evaluation.reason).not.toContain(fragment));
       }
     }
+  });
+
+  it("accepts a candidate only when every configured condition passes", () => {
+    const candidate = { program: parseProgram("inc [0], [0]"), descriptorCells: [] };
+    const config: SearchConfig = {
+      ...TEST_CONFIG,
+      memorySize: 1,
+      cases: [
+        { initialMemory: [1n], expectedMemory: [2n] },
+        { initialMemory: [4n], expectedMemory: [5n] },
+      ],
+    };
+    const successful = evaluateRandomProgram(candidate, config, 1);
+    expect(successful.status).toBe("success");
+    expect(successful.result?.runs).toHaveLength(2);
+    expect(successful.result?.steps).toBe(2);
+
+    const failing = evaluateRandomProgram(candidate, {
+      ...config,
+      cases: [...config.cases, { initialMemory: [9n], expectedMemory: [99n] }],
+    }, 1);
+    expect(failing.status).toBe("failed");
   });
 });

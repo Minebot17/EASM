@@ -14,8 +14,10 @@ function configFromPayload(payload: SearchPayload): SearchConfig {
   return {
     ...payload,
     seed: BigInt(payload.seed),
-    initialMemory: payload.initialMemory.map(BigInt),
-    expectedMemory: payload.expectedMemory.map(BigInt),
+    cases: payload.cases.map((testCase) => ({
+      initialMemory: testCase.initialMemory.map(BigInt),
+      expectedMemory: testCase.expectedMemory.map(BigInt),
+    })),
   };
 }
 

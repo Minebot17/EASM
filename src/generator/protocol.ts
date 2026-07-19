@@ -8,8 +8,10 @@ export interface SearchPayload {
   memorySize: number;
   maxStepsPerProgram: number;
   seed: string;
-  initialMemory: string[];
-  expectedMemory: string[];
+  cases: Array<{
+    initialMemory: string[];
+    expectedMemory: string[];
+  }>;
   comparisonMode: ComparisonMode;
 }
 

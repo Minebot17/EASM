@@ -25,9 +25,13 @@ export interface SearchConfig {
   memorySize: number;
   maxStepsPerProgram: number;
   seed: bigint;
+  cases: SearchCase[];
+  comparisonMode: ComparisonMode;
+}
+
+export interface SearchCase {
   initialMemory: bigint[];
   expectedMemory: bigint[];
-  comparisonMode: ComparisonMode;
 }
 
 export type ComparisonMode = "exact" | "ignoreZeros";
@@ -38,6 +42,14 @@ export interface SuccessfulProgram {
   finalSource: string;
   steps: number;
   mutations: number;
+  runs: SuccessfulRun[];
+}
+
+export interface SuccessfulRun {
+  caseIndex: number;
+  steps: number;
+  mutations: number;
+  finalSource: string;
 }
 
 export interface SearchProgress {
@@ -50,7 +62,7 @@ export interface SearchProgress {
 
 export interface GeneratedCandidate {
   program: Program;
-  initialMemory: bigint[];
+  descriptorCells: bigint[];
 }
 
 export class RandomSource {
@@ -230,12 +242,7 @@ export function generateRandomCandidate(config: SearchConfig, ordinal: number): 
   const random = new RandomSource(seedForCandidate(config.seed, ordinal));
   const descriptors = new DescriptorAllocator(config.memorySize);
   const program = buildRandomProgram(config.instructionsPerProgram, config.memorySize, random, descriptors);
-  const initialMemory = Array.from({ length: config.memorySize + descriptors.cells.length }, (_, index) => {
-    if (index < config.initialMemory.length) return BigInt.asIntN(64, config.initialMemory[index]);
-    if (index >= config.memorySize) return descriptors.cells[index - config.memorySize];
-    return 0n;
-  });
-  return { program, initialMemory };
+  return { program, descriptorCells: descriptors.cells };
 }
 
 export function generateRandomProgram(
@@ -268,20 +275,36 @@ export function evaluateRandomProgram(
   config: SearchConfig,
   ordinal: number,
 ): { status: "success" | "failed" | "error" | "limit"; result?: SuccessfulProgram; reason?: string } {
-  const vm = new EasmVm(candidate.program, {
-    memorySize: candidate.initialMemory.length,
-    addressLimit: config.memorySize,
-    initialMemory: candidate.initialMemory,
-    maxSteps: config.maxStepsPerProgram,
-    seed: seedForCandidate(config.seed ^ 0xd1b54a32d192ed03n, ordinal),
-    traceLimit: 0,
-  });
-  const execution = vm.runFast();
-  if (execution.status === "error") return { status: "error", reason: execution.reason };
-  if (execution.status === "limit") return { status: "limit", reason: execution.reason };
-  const outputMemory = Array.from(vm.memory.slice(0, config.memorySize));
-  if (execution.status !== "halted" || !memoryMatches(outputMemory, config.expectedMemory, config.comparisonMode)) {
-    return { status: "failed" };
+  const runs: SuccessfulRun[] = [];
+
+  for (let caseIndex = 0; caseIndex < config.cases.length; caseIndex += 1) {
+    const testCase = config.cases[caseIndex];
+    const initialMemory = Array.from({ length: config.memorySize + candidate.descriptorCells.length }, (_, index) => {
+      if (index < testCase.initialMemory.length) return BigInt.asIntN(64, testCase.initialMemory[index]);
+      if (index >= config.memorySize) return candidate.descriptorCells[index - config.memorySize];
+      return 0n;
+    });
+    const vm = new EasmVm(candidate.program, {
+      memorySize: initialMemory.length,
+      addressLimit: config.memorySize,
+      initialMemory,
+      maxSteps: config.maxStepsPerProgram,
+      seed: seedForCandidate(config.seed ^ 0xd1b54a32d192ed03n, ordinal),
+      traceLimit: 0,
+    });
+    const execution = vm.runFast();
+    if (execution.status === "error") return { status: "error", reason: `Условие ${caseIndex + 1}: ${execution.reason}` };
+    if (execution.status === "limit") return { status: "limit", reason: `Условие ${caseIndex + 1}: ${execution.reason}` };
+    const outputMemory = Array.from(vm.memory.slice(0, config.memorySize));
+    if (execution.status !== "halted" || !memoryMatches(outputMemory, testCase.expectedMemory, config.comparisonMode)) {
+      return { status: "failed" };
+    }
+    runs.push({
+      caseIndex,
+      steps: execution.steps,
+      mutations: vm.mutations.length,
+      finalSource: vm.program.map(formatInstruction).join("\n"),
+    });
   }
 
   const source = candidate.program.instructions.map(formatInstruction).join("\n");
@@ -290,9 +313,10 @@ export function evaluateRandomProgram(
     result: {
       ordinal,
       source,
-      finalSource: vm.program.map(formatInstruction).join("\n"),
-      steps: execution.steps,
-      mutations: vm.mutations.length,
+      finalSource: runs[0]?.finalSource ?? source,
+      steps: runs.reduce((sum, run) => sum + run.steps, 0),
+      mutations: runs.reduce((sum, run) => sum + run.mutations, 0),
+      runs,
     },
   };
 }
